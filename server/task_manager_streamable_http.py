@@ -116,7 +116,7 @@ def get_next_task_id() -> int:
 @mcp.tool
 def add_task(
     description: str, 
-    tag: Optional[Annotated[Tags, "Task tag"]] = None, 
+    tag: Optional[str] = None, 
     due_date: Optional[str] = None
 ) -> dict:
     """
@@ -145,7 +145,7 @@ def add_task(
     task = {
         "id": task_id,
         "description": description,
-        "tag": tag.value if tag else "",
+        "tag": tag or "",
         "status": Status.PENDING.value,
         "created_at": datetime.now().isoformat(),
         "due_date": due_date or ""
@@ -157,7 +157,7 @@ def add_task(
 # Tool to list all tasks
 @mcp.tool(name="list_tasks", description="List all tasks, optionally filtering by tag.")
 def list_tasks(
-        tag: Optional[Annotated[Tags, "Task tag"]] = None
+        tag: Optional[str] = None
     ) -> list[dict]:
     """
     Retrieve all tasks from the task manager, with optional filtering by tag.
@@ -179,7 +179,7 @@ def list_tasks(
     """
     tasks = read_tasks()
     if tag:
-        tasks = [task for task in tasks if task["tag"] == tag.value]
+        tasks = [task for task in tasks if task.get("tag") == tag]
     return tasks
 
 # Tool to update a task
@@ -187,9 +187,9 @@ def list_tasks(
 def update_task(
     task_id: int,
     description: Optional[str] = None,
-    tag: Optional[Annotated[Tags, "Task tag"]] = None,
+    tag: Optional[str] = None,
     due_date: Optional[str] = None,
-    status: Optional[Annotated[Status, "Task status"]] = None
+    status: Optional[str] = None
 ) -> dict:
     """
     Update one or more fields of an existing task and persist changes to CSV.
@@ -224,11 +224,11 @@ def update_task(
             if description is not None:
                 task["description"] = description
             if tag is not None:
-                task["tag"] = tag.value
+                task["tag"] = tag
             if due_date is not None:
                 task["due_date"] = due_date
             if status is not None:
-                task["status"] = status.value
+                task["status"] = status
             write_tasks(tasks)
             return task
     raise ValueError(f"Task with ID {task_id} not found.")
@@ -300,17 +300,17 @@ def get_task(task_id: int) -> dict:
 # Add a prompt 
 @mcp.prompt
 def analyze_tasks(
-    tag: Optional[Annotated[Tags, "Task tag"]] = None,
-    status: Optional[Annotated[Status, "Task status"]] = None
+    tag: Optional[str] = None,
+    status: Optional[str] = None
     ) -> str:
     """Generate a prompt to analyze the tasks with optional filters."""
 
     filters = []
     if tag:
-        filters.append(f'tag="{tag.value}"')
+        filters.append(f'tag="{tag}"')
         
     if status:
-        filters.append(f'status="{status.value}"')
+        filters.append(f'status="{status}"')
         
     filters_text =  f" ({', '.join(filters)})" if filters else ""
     
