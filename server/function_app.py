@@ -23,7 +23,7 @@ except Exception as e:
     logging.error(f"Failed to import MCP server: {str(e)}", exc_info=True)
     mcp = None
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 async def initialize_mcp_app():
     """Initialize MCP ASGI app with proper lifespan handling."""

@@ -5,6 +5,11 @@ from typing import Annotated
 from datetime import datetime
 from pathlib import Path
 from enum import Enum
+import os
+import io
+
+# Azure Blob Storage for persistent CSV
+from azure.storage.blob import BlobServiceClient
 
 # Create the MCP server
 mcp = FastMCP("Tasks MCP Server")
@@ -28,35 +33,77 @@ def get_next_task_id() -> int:
     return max(task["id"] for task in tasks) + 1
 
 
-# CSV file path - use /tmp for Azure Functions
-import os
-CSV_FILE = Path(os.getenv("TEMP", "/tmp")) / "tasks.csv"
+# Azure Blob Storage configuration
+STORAGE_CONNECTION_STRING = os.getenv("AzureWebJobsStorage")
+CONTAINER_NAME = "mcp-tasks"
+BLOB_NAME = "tasks.csv"
 
-# Ensure CSV exists with header
-if not CSV_FILE.exists():
-    with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["id","description","tag","status","created_at","due_date"])
-        writer.writeheader()
+# Initialize blob client
+blob_service_client = None
+blob_client = None
+
+if STORAGE_CONNECTION_STRING:
+    try:
+        blob_service_client = BlobServiceClient.from_connection_string(STORAGE_CONNECTION_STRING)
+        # Create container if it doesn't exist
+        try:
+            blob_service_client.create_container(CONTAINER_NAME)
+        except Exception:
+            pass  # Container already exists
+        blob_client = blob_service_client.get_blob_client(container=CONTAINER_NAME, blob=BLOB_NAME)
+    except Exception as e:
+        print(f"Failed to initialize blob storage: {e}")
 
 # Helper functions
 def read_tasks() -> list[dict]:
-    with CSV_FILE.open("r", newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        return [dict(row, id=int(row["id"])) for row in reader]
+    if blob_client:
+        try:
+            # Download from blob storage
+            blob_data = blob_client.download_blob().readall()
+            csv_content = blob_data.decode("utf-8")
+            reader = csv.DictReader(io.StringIO(csv_content))
+            return [dict(row, id=int(row["id"])) for row in reader]
+        except Exception as e:
+            # Blob doesn't exist or error - return empty list
+            print(f"Error reading from blob: {e}")
+            return []
+    else:
+        # Fallback to local file
+        CSV_FILE = Path(os.getenv("TEMP", "/tmp")) / "tasks.csv"
+        if not CSV_FILE.exists():
+            return []
+        with CSV_FILE.open("r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            return [dict(row, id=int(row["id"])) for row in reader]
 
 def write_tasks(tasks: list[dict]):
-    with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["id","description","tag","status","created_at","due_date"])
-        writer.writeheader()
-        for task in tasks:
-            writer.writerow({
-                "id": task["id"],
-                "description": task["description"],
-                "tag": task.get("tag",""),
-                "status": task["status"],
-                "created_at": task["created_at"],
-                "due_date": task.get("due_date","")
-            })
+    # Write to in-memory buffer
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["id","description","tag","status","created_at","due_date"])
+    writer.writeheader()
+    for task in tasks:
+        writer.writerow({
+            "id": task["id"],
+            "description": task["description"],
+            "tag": task.get("tag",""),
+            "status": task["status"],
+            "created_at": task["created_at"],
+            "due_date": task.get("due_date","")
+        })
+    
+    csv_content = output.getvalue()
+    
+    if blob_client:
+        try:
+            # Upload to blob storage
+            blob_client.upload_blob(csv_content, overwrite=True)
+        except Exception as e:
+            print(f"Error writing to blob: {e}")
+    else:
+        # Fallback to local file
+        CSV_FILE = Path(os.getenv("TEMP", "/tmp")) / "tasks.csv"
+        with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
+            f.write(csv_content)
 
 def get_next_task_id() -> int:
     tasks = read_tasks()
