@@ -28,8 +28,9 @@ def get_next_task_id() -> int:
     return max(task["id"] for task in tasks) + 1
 
 
-# CSV file path
-CSV_FILE = Path("tasks.csv")
+# CSV file path - use /tmp for Azure Functions
+import os
+CSV_FILE = Path(os.getenv("TEMP", "/tmp")) / "tasks.csv"
 
 # Ensure CSV exists with header
 if not CSV_FILE.exists():
