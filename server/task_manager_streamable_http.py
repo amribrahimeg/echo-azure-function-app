@@ -116,8 +116,8 @@ def get_next_task_id() -> int:
 @mcp.tool
 def add_task(
     description: str, 
-    tag: Optional[str] = None, 
-    due_date: Optional[str] = None
+    tag: str = "", 
+    due_date: str = ""
 ) -> dict:
     """
     Add a new task to the task manager and persist it to CSV.
@@ -145,10 +145,10 @@ def add_task(
     task = {
         "id": task_id,
         "description": description,
-        "tag": tag or "",
+        "tag": tag if tag else "",
         "status": Status.PENDING.value,
         "created_at": datetime.now().isoformat(),
-        "due_date": due_date or ""
+        "due_date": due_date if due_date else ""
     }
     tasks.append(task)
     write_tasks(tasks)  # save back to CSV
@@ -157,7 +157,7 @@ def add_task(
 # Tool to list all tasks
 @mcp.tool(name="list_tasks", description="List all tasks, optionally filtering by tag.")
 def list_tasks(
-        tag: Optional[str] = None
+        tag: str = ""
     ) -> list[dict]:
     """
     Retrieve all tasks from the task manager, with optional filtering by tag.
@@ -178,7 +178,7 @@ def list_tasks(
             - due_date (str): Due date (may be empty string)
     """
     tasks = read_tasks()
-    if tag:
+    if tag and tag != "":
         tasks = [task for task in tasks if task.get("tag") == tag]
     return tasks
 
@@ -186,10 +186,10 @@ def list_tasks(
 @mcp.tool(name="update_task", description="Update one or more fields of an existing task by ID.")
 def update_task(
     task_id: int,
-    description: Optional[str] = None,
-    tag: Optional[str] = None,
-    due_date: Optional[str] = None,
-    status: Optional[str] = None
+    description: str = "",
+    tag: str = "",
+    due_date: str = "",
+    status: str = ""
 ) -> dict:
     """
     Update one or more fields of an existing task and persist changes to CSV.
@@ -221,13 +221,13 @@ def update_task(
     tasks = read_tasks()
     for task in tasks:
         if task["id"] == task_id:
-            if description is not None:
+            if description and description != "":
                 task["description"] = description
-            if tag is not None:
+            if tag and tag != "":
                 task["tag"] = tag
-            if due_date is not None:
+            if due_date and due_date != "":
                 task["due_date"] = due_date
-            if status is not None:
+            if status and status != "":
                 task["status"] = status
             write_tasks(tasks)
             return task
@@ -300,8 +300,8 @@ def get_task(task_id: int) -> dict:
 # Add a prompt 
 @mcp.prompt
 def analyze_tasks(
-    tag: Optional[str] = None,
-    status: Optional[str] = None
+    tag: str = "",
+    status: str = ""
     ) -> str:
     """Generate a prompt to analyze the tasks with optional filters."""
 
