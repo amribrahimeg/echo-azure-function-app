@@ -1,0 +1,16 @@
+.git*
+.vscode
+local.settings.json
+test
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache
+tasks.csv
