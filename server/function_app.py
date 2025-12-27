@@ -1,6 +1,6 @@
 import azure.functions as func
 import logging
-from task_manager_streamable_http import mcp
+# from task_manager_streamable_http import mcp
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION) # Create function app that needs a function key for security
 
